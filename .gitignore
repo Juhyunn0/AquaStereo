@@ -11,3 +11,8 @@ ckpts/
 weights/
 outputs/
 output/
+oak_output/
+
+# python cache
+__pycache__/
+*.pyc
