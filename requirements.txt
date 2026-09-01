@@ -1,0 +1,43 @@
+# AquaStereo + OAK-D W - verified on Ubuntu / Python 3.12.11 / RTX 5090 (sm_120).
+#
+#   conda create -n aquastereo python=3.12 -y
+#   conda activate aquastereo
+#   pip install -r requirements.txt
+#
+# The upstream README asks for Python 3.8 + torch 2.0.1 + CUDA 11.8. That
+# combination cannot drive an RTX 50-series card: sm_120 support only landed in
+# torch 2.7, and torch dropped Python 3.8 after 2.4. The pins below are the
+# versions this setup was actually tested against.
+
+# --- PyTorch: must come from the CUDA 12.8 index for sm_120 (RTX 50-series) ---
+# On an older GPU, drop the index line and plain `pip install torch torchvision`
+# will pick a wheel that suits it.
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.9.1
+torchvision==0.24.1
+
+# --- AquaStereo model ---
+# fvcore and pytorchvideo build the X3D perception encoder; timm and scipy are
+# imported at module scope by core/ even though inference never calls into them.
+fvcore==0.1.5.post20221221
+pytorchvideo==0.1.5
+timm==1.0.29
+scipy==1.18.1
+
+numpy==2.2.6
+opencv-python==4.12.0.88
+pillow==12.1.0
+tqdm==4.67.1
+
+# --- OAK-D W camera (DepthAI v3 API) ---
+# Only needed for `--source oak`; the `--source images` path runs without it.
+depthai==3.5.0
+
+# --- Only needed to run the repo's own dataset evaluation (evaluate_stereo.py) ---
+# core/stereo_datasets.py imports these at startup; oak_aquastereo.py does not.
+imageio==2.37.4
+scikit-image==0.26.0
+matplotlib==3.10.9
+
+# --- Training only (not needed for inference) ---
+# tensorboard

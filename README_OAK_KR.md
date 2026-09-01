@@ -3,6 +3,47 @@
 OAK-D W 카메라로 AquaStereo를 실행하는 방법입니다. 이 환경(RTX 5090 / Python 3.12 / torch 2.9)에
 맞춰 이미 설정과 검증이 끝나 있습니다.
 
+## 설치
+
+현재 쓰고 있는 base 환경에는 **이미 다 설치되어 있어서 바로 실행 가능합니다.**
+아래는 별도 conda 환경을 새로 만들 때의 절차입니다.
+
+```bash
+conda create -n aquastereo python=3.12 -y
+conda activate aquastereo
+cd ~/Desktop/New/AquaStereo
+pip install -r requirements.txt
+```
+
+`conda install`이 아니라 `pip install`을 쓰는 이유는, RTX 5090(sm_120)용 CUDA 12.8 빌드
+PyTorch가 conda 채널에는 없고 PyTorch 공식 wheel 인덱스에만 있기 때문입니다.
+`requirements.txt` 안에 그 인덱스 주소가 들어 있습니다.
+
+원본 README는 Python 3.8 + torch 2.0.1 + CUDA 11.8을 권하는데, **이 조합으로는 RTX 5090이
+동작하지 않습니다.** sm_120 지원은 torch 2.7부터 들어갔고, torch는 2.4 이후 Python 3.8을
+지원하지 않습니다. 그래서 Python 3.12 + torch 2.9.1+cu128로 맞췄습니다.
+
+설치가 끝나면 확인:
+
+```bash
+python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+```
+
+`2.9.1+cu128 True NVIDIA GeForce RTX 5090`처럼 나오면 정상입니다.
+
+환경을 다시 쓸 때마다 `conda activate aquastereo`를 먼저 실행하세요.
+
+### 무엇이 왜 필요한지
+
+| 패키지 | 용도 |
+|---|---|
+| `torch`, `torchvision` | 모델 실행 (cu128 빌드 필수) |
+| `fvcore`, `pytorchvideo` | X3D perception 인코더 구성 — 없으면 모델 생성 자체가 실패 |
+| `timm`, `scipy` | `core/`가 모듈 최상단에서 import (추론에서 실제로 쓰이진 않지만 없으면 import 에러) |
+| `depthai` | OAK 카메라. `--source images`만 쓸 거면 불필요 |
+| `opencv-python`, `numpy`, `pillow`, `tqdm` | 영상 입출력·표시 |
+| `imageio`, `scikit-image`, `matplotlib` | 저장소 원본 `evaluate_stereo.py`로 데이터셋 평가할 때만 필요 |
+
 ## 빠른 시작
 
 카메라를 USB3 포트에 연결한 뒤:
@@ -113,18 +154,6 @@ python oak_aquastereo.py --water_n 1.333
   X3D·DINOv2 사전학습 파일은 학습할 때만 필요하고, 추론용 백본은 체크포인트 안에
   이미 들어 있습니다.
 
-## 설치된 것들
-
-이 환경에 다음 패키지를 추가로 설치해 두었습니다 (AquaStereo가 요구하지만 빠져 있던 것들):
-
-```
-timm  scipy  imageio  scikit-image  fvcore  pytorchvideo
-```
-
-원본 README는 Python 3.8 / torch 2.0.1을 권하지만, RTX 5090(sm_120)은 그 버전으로
-동작하지 않습니다. 현재 설치된 Python 3.12 / torch 2.9.1+cu128 조합에서 코드 수정 없이
-그대로 동작하는 것을 확인했습니다.
-
 ## 문제가 생기면
 
 **카메라를 못 찾을 때**
@@ -142,3 +171,18 @@ udev 규칙(`/etc/udev/rules.d/80-movidius.rules`)은 이미 설치되어 있습
 - 장면에 질감이 거의 없으면(민무늬 벽, 탁한 물) 매칭이 어렵습니다. 조명을 더 주세요.
 - `--iters`를 32까지 올려보세요.
 - 너무 가까운 물체는 시차가 커서 잘립니다. 조금 떨어뜨려 보세요.
+
+**`CUDA error: no kernel image is available` 또는 `sm_120 is not compatible`**
+
+CUDA 12.8 빌드가 아닌 PyTorch가 깔린 경우입니다. 확인 후 재설치하세요:
+
+```bash
+python -c "import torch; print(torch.version.cuda)"   # 12.8 이어야 함
+pip install --force-reinstall torch==2.9.1 torchvision==0.24.1 \
+  --index-url https://download.pytorch.org/whl/cu128
+```
+
+**`ModuleNotFoundError: No module named 'fvcore'` / `'pytorchvideo'` / `'timm'`**
+
+`pip install -r requirements.txt`를 실행하지 않았거나 다른 환경에서 돌리고 있습니다.
+`conda activate aquastereo`를 먼저 했는지, `which python`이 그 환경을 가리키는지 확인하세요.
